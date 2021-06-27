@@ -11,9 +11,8 @@ import os
 from forms import CreateRegisterForm, CreatePostForm, LoginForm, CreateCommentForm
 from functools import wraps
 
-
 app = Flask(__name__)
-app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY')
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "8BYkEfBA6O6donzWlSihBXox7C0sKR6b")
 ckeditor = CKEditor(app)
 Bootstrap(app)
 
@@ -30,7 +29,6 @@ gravatar = Gravatar(app,
 login_manager = LoginManager()
 login_manager.init_app(app)
 
-
 def admin_only(f):
     @wraps(f)
     def decorated_function(*args, **kwargs):
@@ -41,7 +39,7 @@ def admin_only(f):
     return decorated_function
 
 ##CONNECT TO DB
-app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL")
+app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get("DATABASE_URL", 'sqlite:///blog.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
 
@@ -92,12 +90,7 @@ class Comment(db.Model):
 
     text = db.Column(db.Text, nullable=False)
 
-
-db.create_all()
-
-user = Comment.query.all()
-for data in user :
-    print(data.text)
+# db.create_all()
 
 @app.route('/')
 def get_all_posts():
@@ -133,7 +126,7 @@ def register():
     if form.validate_on_submit():
         name = form.name.data
         email = form.email.data
-        password = form.password.data
+        password = form.password.data #password tanpa hash
         password_hash_salt = generate_password_hash(password=password, method='pbkdf2:sha256', salt_length=8)
         user_entry = User(email=email, password=password_hash_salt, name=name)
 
@@ -188,13 +181,12 @@ def logout():
 def about():
     return render_template("about.html")
 
-
 @app.route("/contact")
 def contact():
     return render_template("contact.html")
 
 @app.route("/new-post", methods=["GET", "POST"])
-@admin_only #Jangan Lupa Tambah class clear-fix di HTML agar WRAP nya work
+@admin_only
 def add_new_post():
     form = CreatePostForm()
     if form.validate_on_submit():
@@ -213,7 +205,7 @@ def add_new_post():
 
 
 @app.route("/edit-post/<int:post_id>")
-@admin_only
+@admin_only #Jangan Lupa Tambah class clear-fix di HTML agar WRAP nya work
 def edit_post(post_id):
     post = BlogPost.query.get(post_id)
     edit_form = CreatePostForm(
@@ -243,5 +235,9 @@ def delete_post(post_id):
     return redirect(url_for('get_all_posts'))
 
 
+# if __name__=="__main__":
+#     app.run(host='0.0.0.0', port=5000)
+
 if __name__=="__main__":
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host=os.getenv('IP', '0.0.0.0'),
+            port=int(os.getenv('PORT', 8937)), debug=True)
